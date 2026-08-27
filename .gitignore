@@ -1,0 +1,20 @@
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated data (too large for GitHub)
+data/raw/
+data/processed/
+
+# Saved models
+models/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
