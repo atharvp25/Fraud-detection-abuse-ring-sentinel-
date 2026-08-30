@@ -1,32 +1,15 @@
 """
 Generates device, IP, and payment instrument mappings.
-
-This is the CORE of our graph — it creates the connections:
-  Customer → uses → Device
-  Customer → connects from → IP
-  Customer → pays with → Payment Instrument
-
-Normal customers: own devices, own IPs, own cards
-Family members:   shared IP (home WiFi), maybe shared device, own cards
-Ring members:     shared devices + IPs + cards (multiple overlaps!)
+V2 — Handles student hostels (shared lab devices), corporate cards (shared payment),
+and random IP sharing noise for normal customers.
 """
 import random
 from data_generator.utils import generate_id
 
 
 def generate_device_mappings(all_customers, config):
-    """
-    Assign devices to customers.
-    
-    - Normal customers: each gets their own unique device
-    - Family members: share a family device (30% chance) + have personal device
-    - Ring members: use devices from their ring's shared pool
-    
-    Returns:
-        devices: list of device dicts (device_id, device_type)
-        customer_device_map: list of {customer_id, device_id} mappings
-    """
-    devices = {}        # device_id → device info
+    """Assign devices to customers based on their type."""
+    devices = {}
     customer_device_map = []
     device_counter = 0
 
@@ -35,7 +18,6 @@ def generate_device_mappings(all_customers, config):
         cust_type = customer["customer_type"]
 
         if cust_type == "ring_member":
-            # Ring members use their assigned shared device
             device_id = customer["_assigned_device"]
             if device_id not in devices:
                 devices[device_id] = {
@@ -43,13 +25,10 @@ def generate_device_mappings(all_customers, config):
                     "device_type": random.choice(["android", "ios", "windows", "mac"]),
                     "device_fingerprint": f"FP_{device_id}",
                 }
-            customer_device_map.append({
-                "customer_id": cust_id,
-                "device_id": device_id,
-            })
+            customer_device_map.append({"customer_id": cust_id, "device_id": device_id})
 
-        elif cust_type == "family":
-            # Family members: always have a personal device
+        elif cust_type in ("family", "student"):
+            # Personal device
             personal_device = generate_id("D", device_counter)
             device_counter += 1
             devices[personal_device] = {
@@ -57,12 +36,9 @@ def generate_device_mappings(all_customers, config):
                 "device_type": random.choice(["android", "ios"]),
                 "device_fingerprint": f"FP_{personal_device}",
             }
-            customer_device_map.append({
-                "customer_id": cust_id,
-                "device_id": personal_device,
-            })
+            customer_device_map.append({"customer_id": cust_id, "device_id": personal_device})
 
-            # ALSO use family shared device sometimes (30%)
+            # Shared device (family tablet or hostel lab computer)
             if customer.get("_uses_shared_device", False):
                 shared_dev = customer["_shared_device"]
                 if shared_dev not in devices:
@@ -71,13 +47,10 @@ def generate_device_mappings(all_customers, config):
                         "device_type": random.choice(["android", "windows"]),
                         "device_fingerprint": f"FP_{shared_dev}",
                     }
-                customer_device_map.append({
-                    "customer_id": cust_id,
-                    "device_id": shared_dev,
-                })
+                customer_device_map.append({"customer_id": cust_id, "device_id": shared_dev})
 
         else:
-            # Normal customer: gets their own device
+            # Normal, office, corporate: own device
             device_id = generate_id("D", device_counter)
             device_counter += 1
             devices[device_id] = {
@@ -85,30 +58,19 @@ def generate_device_mappings(all_customers, config):
                 "device_type": random.choice(["android", "ios", "windows", "mac"]),
                 "device_fingerprint": f"FP_{device_id}",
             }
-            customer_device_map.append({
-                "customer_id": cust_id,
-                "device_id": device_id,
-            })
+            customer_device_map.append({"customer_id": cust_id, "device_id": device_id})
 
     return list(devices.values()), customer_device_map
 
 
 def generate_ip_mappings(all_customers, config):
-    """
-    Assign IP addresses to customers.
-    
-    - Normal customers: each gets a unique home IP
-    - Family members: share home WiFi IP
-    - Office workers: share office WiFi IP
-    - Ring members: use IPs from their ring's shared pool
-    
-    Returns:
-        ip_addresses: list of IP dicts
-        customer_ip_map: list of {customer_id, ip_id} mappings
-    """
+    """Assign IP addresses to customers."""
     ip_addresses = {}
     customer_ip_map = []
     ip_counter = 0
+
+    # Collect all normal customer IPs for random sharing later
+    normal_ips = []
 
     for customer in all_customers:
         cust_id = customer["customer_id"]
@@ -120,16 +82,15 @@ def generate_ip_mappings(all_customers, config):
                 ip_addresses[ip_id] = {
                     "ip_id": ip_id,
                     "ip_address": f"10.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,254)}",
-                    "ip_type": "vpn",   # Rings often use VPNs
+                    "ip_type": "vpn",
                 }
             customer_ip_map.append({"customer_id": cust_id, "ip_id": ip_id})
 
-        elif cust_type in ("family", "office"):
-            # Use the shared IP from their group
+        elif cust_type in ("family", "office", "student"):
             shared_ip = customer.get("_shared_ip")
             if shared_ip:
                 if shared_ip not in ip_addresses:
-                    ip_type = "home" if cust_type == "family" else "office"
+                    ip_type = {"family": "home", "office": "office", "student": "campus"}.get(cust_type, "home")
                     ip_addresses[shared_ip] = {
                         "ip_id": shared_ip,
                         "ip_address": f"192.168.{random.randint(0,255)}.{random.randint(1,254)}",
@@ -138,7 +99,7 @@ def generate_ip_mappings(all_customers, config):
                 customer_ip_map.append({"customer_id": cust_id, "ip_id": shared_ip})
 
         else:
-            # Normal customer: unique IP
+            # Normal + corporate: unique IP
             ip_id = generate_id("IP", ip_counter)
             ip_counter += 1
             ip_addresses[ip_id] = {
@@ -147,25 +108,28 @@ def generate_ip_mappings(all_customers, config):
                 "ip_type": "home",
             }
             customer_ip_map.append({"customer_id": cust_id, "ip_id": ip_id})
+            normal_ips.append(ip_id)
+
+    # Add random IP sharing noise: 5% of normal customers share an IP with another random normal
+    sharing_pct = config.get("random_ip_sharing_pct", 0.05)
+    normal_customers = [c for c in all_customers if c["customer_type"] == "normal"]
+    num_to_share = int(len(normal_customers) * sharing_pct)
+
+    if normal_ips and num_to_share > 0:
+        for _ in range(num_to_share):
+            random_customer = random.choice(normal_customers)
+            random_ip = random.choice(normal_ips)
+            # Add a second IP mapping (public WiFi, coffee shop, etc.)
+            customer_ip_map.append({
+                "customer_id": random_customer["customer_id"],
+                "ip_id": random_ip,
+            })
 
     return list(ip_addresses.values()), customer_ip_map
 
 
 def generate_payment_mappings(all_customers, config):
-    """
-    Assign payment instruments (cards, UPI) to customers.
-    
-    - Normal & family customers: each gets their OWN card (this is key!)
-    - Ring members: share payment instruments from their ring's pool
-    
-    This is a CRITICAL difference:
-    Family shares IP + device → normal
-    Ring shares IP + device + CARD → suspicious!
-    
-    Returns:
-        payment_instruments: list of payment dicts
-        customer_payment_map: list of {customer_id, payment_id} mappings
-    """
+    """Assign payment instruments to customers."""
     payment_instruments = {}
     customer_payment_map = []
     pay_counter = 0
@@ -184,8 +148,29 @@ def generate_payment_mappings(all_customers, config):
                 }
             customer_payment_map.append({"customer_id": cust_id, "payment_id": pay_id})
 
+        elif cust_type == "corporate":
+            # Corporate employees share a company card
+            shared_pay = customer.get("_shared_payment")
+            if shared_pay:
+                if shared_pay not in payment_instruments:
+                    payment_instruments[shared_pay] = {
+                        "payment_id": shared_pay,
+                        "payment_type": "credit_card",
+                        "payment_fingerprint": f"PF_{shared_pay}",
+                    }
+                customer_payment_map.append({"customer_id": cust_id, "payment_id": shared_pay})
+            # They also have their own personal card for some purchases
+            personal_pay = generate_id("PAY", pay_counter)
+            pay_counter += 1
+            payment_instruments[personal_pay] = {
+                "payment_id": personal_pay,
+                "payment_type": random.choice(["debit_card", "upi"]),
+                "payment_fingerprint": f"PF_{personal_pay}",
+            }
+            customer_payment_map.append({"customer_id": cust_id, "payment_id": personal_pay})
+
         else:
-            # Normal + Family + Office: each person has their OWN payment method
+            # Normal, family, office, student: own payment method
             pay_id = generate_id("PAY", pay_counter)
             pay_counter += 1
             payment_instruments[pay_id] = {

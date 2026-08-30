@@ -1,7 +1,7 @@
 """
-Generates legitimate sharing groups — families and office workers.
-These people share devices/IPs like abuse rings BUT they are innocent.
-This is what makes our dataset HARD (not trivially solvable).
+Generates legitimate sharing groups — families, offices, hostels, and corporate card users.
+V2 — Added student hostels (shared IP + device) and corporate card groups (shared payment).
+These are the HARDEST edge cases — they look like fraud but are innocent.
 """
 import random
 from faker import Faker
@@ -12,44 +12,21 @@ fake = Faker('en_IN')
 
 def generate_families(config, start_index):
     """
-    Create family groups that SHARE devices and IPs (but are legitimate).
-    
-    Why families matter:
-    - They share home WiFi (same IP)
-    - They might share a tablet/laptop (same device)
-    - BUT they have their own payment cards
-    - AND their accounts were created months/years apart
-    - AND they have normal refund rates
-    
-    If our model can't tell families from rings → our model is bad.
-    
-    Args:
-        config: our DATASET_CONFIG
-        start_index: where to start numbering customer IDs (after normal customers)
-    
-    Returns:
-        customers: list of family member customer dicts
-        shared_devices: dict mapping family_id → [device_ids they share]
-        shared_ips: dict mapping family_id → ip_id they share
+    Family groups: share home WiFi (IP) + maybe a tablet (device), own cards.
+    Normal behavior, accounts created months apart.
     """
     customers = []
-    family_devices = {}  # family_id → list of shared device IDs
-    family_ips = {}      # family_id → shared IP ID
-    
+    family_devices = {}
+    family_ips = {}
     current_index = start_index
 
     for fam_id in range(config["num_families"]):
-        # Each family gets a shared home WiFi IP
         shared_ip = f"IP_HOME_{fam_id:04d}"
-        family_ips[fam_id] = shared_ip
-
-        # Each family MIGHT share 1 device (like a family tablet)
         shared_device = f"D_FAM_{fam_id:04d}"
+        family_ips[fam_id] = shared_ip
         family_devices[fam_id] = shared_device
 
-        # Family size: 2 to 5 members
         family_size = random.randint(*config["family_size_range"])
-
         for member in range(family_size):
             customer_id = generate_id("C", current_index)
             name = fake.name()
@@ -60,14 +37,13 @@ def generate_families(config, start_index):
                 "name": name,
                 "email": f"{email_name}{random.randint(1, 999)}@gmail.com",
                 "phone": fake.phone_number(),
-                # KEY DIFFERENCE: Family accounts are created MONTHS apart (not hours!)
                 "created_at": random_date_past_year(days_back=config["data_period_days"]),
                 "customer_type": "family",
-                "ring_id": None,          # Families are NOT rings
-                "_family_id": fam_id,     # Internal tracking (starts with _ = won't go to final data)
+                "ring_id": None,
+                "_family_id": fam_id,
                 "_shared_ip": shared_ip,
                 "_shared_device": shared_device,
-                "_uses_shared_device": member == 0 or random.random() < 0.3,  # 30% chance of using shared device
+                "_uses_shared_device": member == 0 or random.random() < 0.3,
             }
             customers.append(customer)
             current_index += 1
@@ -77,23 +53,10 @@ def generate_families(config, start_index):
 
 def generate_offices(config, start_index):
     """
-    Create office worker groups that share ONLY an IP (office WiFi).
-    
-    Office workers:
-    - Share the same office WiFi IP
-    - Use their OWN phones/laptops (different devices)
-    - Use their OWN payment methods
-    - Have normal behavior
-    
-    This tests: can the model tell "same IP" apart from "same IP + same device + same card"?
-    
-    Returns:
-        customers: list of office worker customer dicts
-        office_ips: dict mapping office_id → shared IP
+    Office workers: share ONLY office WiFi (IP). Own devices, own cards.
     """
     customers = []
     office_ips = {}
-    
     current_index = start_index
 
     for office_id in range(config["num_offices"]):
@@ -101,7 +64,6 @@ def generate_offices(config, start_index):
         office_ips[office_id] = shared_ip
 
         office_size = random.randint(*config["office_size_range"])
-
         for worker in range(office_size):
             customer_id = generate_id("C", current_index)
             name = fake.name()
@@ -122,3 +84,84 @@ def generate_offices(config, start_index):
             current_index += 1
 
     return customers, office_ips
+
+
+def generate_student_hostels(config, start_index):
+    """
+    Student hostel: share WiFi (IP) AND computer lab devices.
+    Looks VERY suspicious (shared IP + shared device), but is legitimate.
+    This is the hardest false-positive case.
+    """
+    customers = []
+    hostel_ips = {}
+    hostel_devices = {}
+    current_index = start_index
+
+    for hostel_id in range(config["num_student_hostels"]):
+        shared_ip = f"IP_HOSTEL_{hostel_id:04d}"
+        # Computer lab has only 2-3 shared devices (creates HIGH sharing = overlaps with device_farm)
+        lab_devices = [f"D_LAB_{hostel_id:04d}_{d}" for d in range(random.randint(2, 3))]
+
+        hostel_ips[hostel_id] = shared_ip
+        hostel_devices[hostel_id] = lab_devices
+
+        hostel_size = random.randint(*config["hostel_size_range"])
+        for student in range(hostel_size):
+            customer_id = generate_id("C", current_index)
+            name = fake.name()
+            email_name = name.lower().replace(" ", ".").replace(".", "", 1)
+
+            customer = {
+                "customer_id": customer_id,
+                "name": name,
+                "email": f"{email_name}{random.randint(1, 999)}@gmail.com",
+                "phone": fake.phone_number(),
+                "created_at": random_date_past_year(days_back=config["data_period_days"]),
+                "customer_type": "student",
+                "ring_id": None,
+                "_hostel_id": hostel_id,
+                "_shared_ip": shared_ip,
+                "_shared_device": random.choice(lab_devices),  # uses one of the lab computers
+                "_uses_shared_device": random.random() < 0.80,  # 80% use lab (creates overlap with device_farm)
+            }
+            customers.append(customer)
+            current_index += 1
+
+    return customers, hostel_devices, hostel_ips
+
+
+def generate_corporate_card_groups(config, start_index):
+    """
+    Corporate card users: multiple employees share a company credit card.
+    Looks suspicious (shared payment instrument!), but is legitimate.
+    Different devices, different IPs, normal refund rate.
+    """
+    customers = []
+    corp_payments = {}
+    current_index = start_index
+
+    for corp_id in range(config["num_corporate_card_groups"]):
+        shared_payment = f"PAY_CORP_{corp_id:04d}"
+        corp_payments[corp_id] = shared_payment
+
+        group_size = random.randint(*config["corporate_card_group_size_range"])
+        for emp in range(group_size):
+            customer_id = generate_id("C", current_index)
+            name = fake.name()
+            email_name = name.lower().replace(" ", ".").replace(".", "", 1)
+
+            customer = {
+                "customer_id": customer_id,
+                "name": name,
+                "email": f"{email_name}{random.randint(1, 999)}@gmail.com",
+                "phone": fake.phone_number(),
+                "created_at": random_date_past_year(days_back=config["data_period_days"]),
+                "customer_type": "corporate",
+                "ring_id": None,
+                "_corp_id": corp_id,
+                "_shared_payment": shared_payment,
+            }
+            customers.append(customer)
+            current_index += 1
+
+    return customers, corp_payments
