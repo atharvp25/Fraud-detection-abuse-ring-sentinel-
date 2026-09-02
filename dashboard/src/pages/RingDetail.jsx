@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { fetchRingDetail, fetchRingExplanation } from '../api'
+import { fetchRingDetail, fetchRingExplanation, chatWithRing } from '../api'
 import { ArrowLeft, Users, Wifi, Smartphone, CreditCard, Brain, AlertTriangle } from 'lucide-react'
 import ForceGraph2D from 'react-force-graph-2d'
 import ReactMarkdown from 'react-markdown'
@@ -22,7 +22,12 @@ const NODE_SIZES = {
 export default function RingDetail() {
   const { ringId } = useParams()
   const [ring, setRing] = useState(null)
-  const [explanation, setExplanation] = useState(null)
+  
+  // Chat state
+  const [chatHistory, setChatHistory] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const chatEndRef = useRef(null)
+
   const [loadingExplanation, setLoadingExplanation] = useState(false)
   const [loading, setLoading] = useState(true)
   const graphRef = useRef()
@@ -31,15 +36,29 @@ export default function RingDetail() {
     fetchRingDetail(ringId).then(d => { setRing(d); setLoading(false) })
   }, [ringId])
 
-  const handleExplain = () => {
+  // Scroll to bottom of chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatHistory, loadingExplanation])
+
+  const handleChat = async (message) => {
+    if (!message.trim()) return
+    
+    // Add user message to UI immediately
+    const newHistory = [...chatHistory, { role: 'user', content: message }]
+    setChatHistory(newHistory)
+    setChatInput('')
     setLoadingExplanation(true)
-    fetchRingExplanation(ringId).then(d => {
-      setExplanation(d.explanation)
-      setLoadingExplanation(false)
-    }).catch(() => {
-      setExplanation('⚠️ Failed to generate explanation. Check API connection.')
-      setLoadingExplanation(false)
-    })
+    
+    try {
+      // Import chatWithRing at the top: import { fetchRingDetail, chatWithRing } from '../api'
+      // Send only previous history, not the new message (backend handles appending it)
+      const res = await chatWithRing(ringId, message, chatHistory)
+      setChatHistory([...newHistory, { role: 'assistant', content: res.reply || res.explanation || 'No response.' }])
+    } catch (err) {
+      setChatHistory([...newHistory, { role: 'assistant', content: '⚠️ Failed to connect to AI.' }])
+    }
+    setLoadingExplanation(false)
   }
 
   const nodeCanvasObject = useCallback((node, ctx, globalScale) => {
@@ -151,33 +170,93 @@ export default function RingDetail() {
           </div>
         </div>
 
-        {/* LLM Explanation */}
-        <div className="panel">
-          <div className="panel-header">
-            <h3><Brain size={18} style={{marginRight: 8, verticalAlign: 'middle'}} />AI Investigation Report</h3>
+        {/* LLM Chat Interface */}
+        <div className="panel" style={{display: 'flex', flexDirection: 'column'}}>
+          <div className="panel-header" style={{marginBottom: 0, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)'}}>
+            <h3><Brain size={18} style={{marginRight: 8, verticalAlign: 'middle', color: 'var(--accent-purple)'}} />AI Investigation Assistant</h3>
           </div>
-          {!explanation && !loadingExplanation && (
-            <div style={{textAlign: 'center', padding: '60px 20px'}}>
-              <Brain size={48} color="var(--accent-purple)" style={{marginBottom: 16, opacity: 0.5}} />
-              <p style={{color: 'var(--text-secondary)', marginBottom: 20}}>
-                Generate an AI-powered investigation report for this ring
-              </p>
-              <button className="btn btn-primary" onClick={handleExplain}>
-                <Brain size={16} /> Generate LLM Report
+          
+          <div className="chat-container" style={{flex: 1, overflowY: 'auto', padding: '16px 0', minHeight: 300, maxHeight: 400}}>
+            {chatHistory.length === 0 && !loadingExplanation && (
+              <div style={{textAlign: 'center', padding: '60px 20px', marginTop: 20}}>
+                <Brain size={48} color="var(--accent-purple)" style={{marginBottom: 16, opacity: 0.5}} />
+                <p style={{color: 'var(--text-secondary)', marginBottom: 20}}>
+                  Ask Groq AI to investigate this ring, identify the ringleader, or estimate losses.
+                </p>
+                <button className="btn btn-primary" onClick={() => handleChat("Write a detailed investigation report for this ring, including risk score, key evidence, and recommended action.")}>
+                  <Brain size={16} /> Generate Initial Report
+                </button>
+              </div>
+            )}
+            
+            {chatHistory.map((msg, i) => (
+              <div key={i} style={{
+                marginBottom: 16, 
+                display: 'flex', 
+                flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                gap: 12
+              }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%', 
+                  background: msg.role === 'user' ? 'var(--accent-blue)' : 'var(--gradient-primary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                }}>
+                  {msg.role === 'user' ? <Users size={16} color="white" /> : <Brain size={16} color="white" />}
+                </div>
+                <div className="chat-bubble" style={{
+                  background: msg.role === 'user' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(0,0,0,0.3)',
+                  border: `1px solid ${msg.role === 'user' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(255,255,255,0.05)'}`,
+                  padding: '12px 16px', borderRadius: 12,
+                  maxWidth: '85%',
+                  borderTopRightRadius: msg.role === 'user' ? 4 : 12,
+                  borderTopLeftRadius: msg.role === 'user' ? 12 : 4,
+                }}>
+                  {msg.role === 'user' ? (
+                    <p style={{margin: 0, fontSize: 14}}>{msg.content}</p>
+                  ) : (
+                    <div className="llm-report"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {loadingExplanation && (
+              <div style={{display: 'flex', gap: 12, marginBottom: 16}}>
+                 <div style={{
+                  width: 32, height: 32, borderRadius: '50%', background: 'var(--gradient-primary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <Brain size={16} color="white" />
+                </div>
+                <div style={{padding: '12px 16px', background: 'rgba(0,0,0,0.3)', borderRadius: 12, borderTopLeftRadius: 4, display: 'flex', alignItems: 'center', gap: 8}}>
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot" style={{animationDelay: '0.2s'}}></div>
+                  <div className="typing-dot" style={{animationDelay: '0.4s'}}></div>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div style={{marginTop: 'auto', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)'}}>
+            <form onSubmit={(e) => { e.preventDefault(); if (chatInput.trim()) handleChat(chatInput); }} style={{display: 'flex', gap: 8}}>
+              <input 
+                type="text" 
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Ask a follow-up question..." 
+                disabled={loadingExplanation}
+                style={{
+                  flex: 1, padding: '10px 16px', borderRadius: 24, 
+                  background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#fff', outline: 'none'
+                }} 
+              />
+              <button type="submit" className="btn btn-primary" disabled={!chatInput.trim() || loadingExplanation} style={{borderRadius: 24, padding: '10px 20px'}}>
+                Send
               </button>
-            </div>
-          )}
-          {loadingExplanation && (
-            <div style={{textAlign: 'center', padding: '60px 20px'}}>
-              <div className="spinner"></div>
-              <p className="loading-text">Groq (Llama 3) is analyzing this ring...</p>
-            </div>
-          )}
-          {explanation && (
-            <div className="llm-report">
-              <ReactMarkdown>{explanation}</ReactMarkdown>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
       </div>
 

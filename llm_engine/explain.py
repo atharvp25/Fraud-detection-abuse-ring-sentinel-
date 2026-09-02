@@ -110,4 +110,59 @@ Be specific and mention the exact numbers that are suspicious."""
         )
         return response.choices[0].message.content
     except Exception as e:
-        return f"⚠️ LLM Error: {str(e)}"
+        return f"LLM Error: {str(e)}"
+
+
+def chat_with_ring(ring_data: dict, message: str, history: list) -> str:
+    """Multi-turn chat about a specific ring. Ring data is injected as system context."""
+
+    # Build system context from ring data
+    members_summary = ""
+    for m in ring_data.get("members", [])[:10]:
+        members_summary += (
+            f"  - {m['customer_id']}: refund_rate={m.get('refund_rate', 0):.1%}, "
+            f"devices={m.get('num_devices_used', 0)}, "
+            f"shared_device_users={m.get('shared_device_users', 0)}, "
+            f"model_confidence={m.get('model_confidence', 0):.1%}, "
+            f"txns={m.get('total_transactions', 0)}, "
+            f"avg_amount=Rs.{m.get('avg_transaction_amount', 0):,.0f}\n"
+        )
+
+    system_prompt = f"""You are a senior fraud investigation analyst at a major Indian fintech company. 
+You are investigating a specific fraud ring. Answer the user's questions using the ring data below.
+Be specific, use numbers, and write like a professional analyst. Do NOT include any thinking or reasoning tags.
+
+RING DATA:
+- Ring ID: {ring_data['ring_id']}
+- Type: {ring_data.get('ring_type', 'Unknown')}
+- Members: {ring_data.get('ring_size', '?')}
+- Shared Devices: {ring_data.get('num_shared_devices', 0)}
+- Shared IPs: {ring_data.get('num_shared_ips', 0)}
+- Shared Payments: {ring_data.get('num_shared_payments', 0)}
+- Avg Refund Rate: {ring_data.get('avg_refund_rate', 0):.1%}
+- Total Amount: Rs.{ring_data.get('total_amount', 0):,.0f}
+
+MEMBERS:
+{members_summary}"""
+
+    # Build messages list: system + history + new message
+    messages = [{"role": "system", "content": system_prompt}]
+
+    for h in history:
+        messages.append({"role": h.get("role", "user"), "content": h.get("content", "")})
+
+    messages.append({"role": "user", "content": message})
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=1024,
+        )
+        result = response.choices[0].message.content
+        import re
+        result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL).strip()
+        return result
+    except Exception as e:
+        return f"LLM Error: {str(e)}"

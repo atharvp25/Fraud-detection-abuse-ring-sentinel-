@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { Shield, LayoutDashboard, Search, BarChart3, Zap } from 'lucide-react'
+import { Shield, LayoutDashboard, Search, BarChart3, Zap, Activity } from 'lucide-react'
 import Overview from './pages/Overview'
 import RingExplorer from './pages/RingExplorer'
 import RingDetail from './pages/RingDetail'
 import ModelAnalysis from './pages/ModelAnalysis'
+import LiveAnalysis from './pages/LiveAnalysis'
 import './index.css'
 
 function App() {
@@ -26,6 +27,11 @@ function App() {
             <li>
               <NavLink to="/" end className={({isActive}) => isActive ? 'active' : ''}>
                 <LayoutDashboard size={18} /> Overview
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/analyze" className={({isActive}) => isActive ? 'active' : ''}>
+                <Activity size={18} /> Live Analysis
               </NavLink>
             </li>
             <li>
@@ -52,6 +58,7 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Overview />} />
+            <Route path="/analyze" element={<LiveAnalysis />} />
             <Route path="/rings" element={<RingExplorer />} />
             <Route path="/rings/:ringId" element={<RingDetail />} />
             <Route path="/models" element={<ModelAnalysis />} />

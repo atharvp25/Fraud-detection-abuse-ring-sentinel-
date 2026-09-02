@@ -6,12 +6,15 @@ not a hand-written formula. This ensures the dashboard reflects the real model.
 """
 import os
 import sys
+import io
 import traceback
 import pandas as pd
 import numpy as np
 import joblib
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 from dotenv import load_dotenv
 
 # Add project root to path
@@ -19,7 +22,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 load_dotenv()
 
-from llm_engine.explain import explain_ring, explain_customer
+from llm_engine.explain import explain_ring, explain_customer, chat_with_ring
 
 app = FastAPI(title="Abuse Ring Sentinel API", version="1.0")
 
@@ -342,6 +345,26 @@ Escalate to human investigator for manual review.
 """
 
 
+class ChatMessage(BaseModel):
+    message: str
+    history: List[dict] = []
+
+@app.post("/api/rings/{ring_id}/chat")
+def chat_with_ring_endpoint(ring_id: str, payload: ChatMessage):
+    """Multi-turn chat for a specific ring."""
+    try:
+        ring_data = get_ring_detail(ring_id)
+        if "error" in ring_data:
+            raise HTTPException(status_code=404, detail="Ring not found")
+            
+        reply = chat_with_ring(ring_data, payload.message, payload.history)
+        return {"reply": reply}
+    except Exception as e:
+        print(f"Chat Error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Failed to chat")
+
+
 @app.get("/api/models")
 def get_model_comparison():
     """Return model comparison data for charts."""
@@ -395,6 +418,75 @@ def get_feature_distributions():
             }
 
     return {"distributions": distributions}
+
+
+@app.post("/api/analyze")
+async def analyze_csv(file: UploadFile = File(...)):
+    """Live analysis of an uploaded CSV file (feature matrix format)."""
+    if ML_MODEL is None or ML_FEATURES is None:
+        raise HTTPException(status_code=500, detail="ML Model not loaded")
+        
+    try:
+        contents = await file.read()
+        df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
+        
+        # Ensure customer_id exists
+        if "customer_id" not in df.columns:
+            # Try to use index if it's named customer_id, else error
+            if df.index.name == "customer_id":
+                df = df.reset_index()
+            else:
+                raise HTTPException(status_code=400, detail="CSV must contain a 'customer_id' column")
+        
+        # Prepare features
+        X = pd.DataFrame()
+        for f in ML_FEATURES:
+            if f in df.columns:
+                X[f] = df[f]
+            else:
+                X[f] = 0.0 # Impute missing
+                
+        # Predict
+        probs = ML_MODEL.predict_proba(X)[:, 1]
+        
+        # Results
+        results = []
+        flagged_count = 0
+        total_risk = 0
+        
+        for i, customer_id in enumerate(df["customer_id"]):
+            prob = float(probs[i])
+            if prob > 0.4:  # Threshold
+                flagged_count += 1
+                total_risk += prob
+                
+                # Try to extract some useful info for display if present
+                refund_rate = float(df.iloc[i].get("refund_rate", 0))
+                devices = int(df.iloc[i].get("num_devices_used", 0))
+                amount = float(df.iloc[i].get("total_amount_spent", 0))
+                
+                results.append({
+                    "customer_id": str(customer_id),
+                    "risk_score": round(prob * 100, 1),
+                    "refund_rate": round(refund_rate * 100, 1),
+                    "devices": devices,
+                    "amount": amount
+                })
+                
+        # Sort by risk
+        results = sorted(results, key=lambda x: x["risk_score"], reverse=True)
+        
+        return {
+            "total_analyzed": len(df),
+            "flagged_count": flagged_count,
+            "avg_risk": round((total_risk / max(1, flagged_count)) * 100, 1) if flagged_count > 0 else 0,
+            "flagged_customers": results[:100]  # Return top 100 max
+        }
+        
+    except Exception as e:
+        print(f"Analyze Error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 if __name__ == "__main__":
