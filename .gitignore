@@ -18,3 +18,11 @@ models/
 # IDE
 .vscode/
 .idea/
+
+# Node
+node_modules/
+dashboard/node_modules/
+dashboard/dist/
+
+# Misc
+*.png
