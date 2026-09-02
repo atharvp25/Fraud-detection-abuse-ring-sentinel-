@@ -377,8 +377,8 @@ def save_feature_matrix(features, output_dir):
 
 
 if __name__ == "__main__":
-    raw_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "raw")
-    processed_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "processed")
+    raw_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "raw")
+    processed_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "processed")
 
     print("=" * 60)
     print("🔧 Feature Engineering Pipeline")

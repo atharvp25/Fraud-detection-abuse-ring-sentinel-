@@ -60,8 +60,8 @@ def evaluate_model(name, y_true, y_pred):
 
 def run_evaluation():
     """Main evaluation pipeline — runs on the HELD-OUT test set (never seen during training)."""
-    processed_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "processed")
-    models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+    processed_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "processed")
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models")
 
     print("=" * 60)
     print("📋 Model Evaluation — Held-Out Test Set")

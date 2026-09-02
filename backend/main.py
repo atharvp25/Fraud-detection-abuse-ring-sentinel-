@@ -17,12 +17,12 @@ from pydantic import BaseModel
 from typing import List, Optional
 from dotenv import load_dotenv
 
-# Add project root to path
-sys.path.insert(0, os.path.dirname(__file__))
+# Add project root to path (one level up from backend/)
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 load_dotenv()
 
-from llm_engine.explain import explain_ring, explain_customer, chat_with_ring
+from backend.llm_engine.explain import explain_ring, explain_customer, chat_with_ring
 
 app = FastAPI(title="Abuse Ring Sentinel API", version="1.0")
 
@@ -36,7 +36,8 @@ app.add_middleware(
 )
 
 # ── Data paths ──
-BASE_DIR = os.path.dirname(__file__)
+# BASE_DIR is now the project root, one level up from backend/
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 RAW_DIR = os.path.join(BASE_DIR, "data", "raw")
 PROCESSED_DIR = os.path.join(BASE_DIR, "data", "processed")
 MODELS_DIR = os.path.join(BASE_DIR, "models")

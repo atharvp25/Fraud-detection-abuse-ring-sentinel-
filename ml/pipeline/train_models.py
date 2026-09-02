@@ -227,8 +227,9 @@ def train_xgboost_with_graph(train, val):
 
 def run_training():
     """Main training pipeline."""
-    processed_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "processed")
-    models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+    # ml/pipeline/train_models.py -> project root is 2 levels up
+    processed_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "processed")
+    models_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "models")
     os.makedirs(models_dir, exist_ok=True)
 
     print("=" * 60)

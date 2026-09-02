@@ -3,21 +3,21 @@ Main script — runs the entire V2 data generation pipeline.
 V2 — 10k customers, 7 ring types, student hostels, corporate cards, noise.
 
 Usage:
-    python -m data_generator.run_generator
+    python -m ml.data_generator.run_generator
 """
 import os
 import random
 import pandas as pd
 
-from data_generator.config import DATASET_CONFIG
-from data_generator.generate_customers import generate_normal_customers
-from data_generator.generate_legitimate_groups import (
+from ml.data_generator.config import DATASET_CONFIG
+from ml.data_generator.generate_customers import generate_normal_customers
+from ml.data_generator.generate_legitimate_groups import (
     generate_families, generate_offices,
     generate_student_hostels, generate_corporate_card_groups,
 )
-from data_generator.generate_rings import generate_abuse_rings
-from data_generator.generate_transactions import generate_transactions
-from data_generator.generate_network import (
+from ml.data_generator.generate_rings import generate_abuse_rings
+from ml.data_generator.generate_transactions import generate_transactions
+from ml.data_generator.generate_network import (
     generate_device_mappings,
     generate_ip_mappings,
     generate_payment_mappings,
@@ -29,7 +29,7 @@ random.seed(SEED)
 
 def run():
     config = DATASET_CONFIG
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "raw")
+    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "raw")
     os.makedirs(output_dir, exist_ok=True)
 
     print("=" * 60)
