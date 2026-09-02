@@ -47,19 +47,23 @@ export default function LiveAnalysis() {
   }
 
   const generateSampleCsv = () => {
-    // Generate a basic sample CSV that matches our feature matrix
-    const header = "customer_id,refund_rate,num_devices_used,shared_device_users,avg_accounts_per_device,shared_ip_users,total_transactions,total_amount_spent,avg_transaction_amount,txn_timespan_days\n"
+    // All 18 features the XGBoost model expects
+    const header = "customer_id,account_age_days,total_transactions,total_refunds,refund_rate,avg_transaction_amount,max_transaction_amount,total_amount_spent,transaction_velocity,txn_timespan_days,num_devices_used,num_ips_used,num_payments_used,shared_device_users,shared_ip_users,shared_payment_users,avg_accounts_per_device,avg_accounts_per_ip,avg_accounts_per_payment\n"
     
-    // Mix of safe and bad users
+    // Mix of safe and fraudulent users
     const rows = [
-      "SAFE_001,0.05,1,1,1.0,1,12,5000,416.6,180",
-      "SAFE_002,0.02,2,1,1.0,1,45,12000,266.6,300",
-      "SAFE_003,0.0,1,1,1.0,1,5,1500,300.0,30",
-      "BAD_001,0.85,5,8,3.5,6,120,45000,375.0,2",
-      "BAD_002,0.92,4,8,3.5,6,95,38000,400.0,1",
-      "BAD_003,0.78,5,8,3.5,6,105,42000,400.0,3",
-      "BAD_004,0.65,3,4,2.0,5,80,25000,312.5,5",
-      "BAD_005,0.71,4,4,2.0,5,92,29000,315.2,6"
+      // Safe users: low refund, few devices, long account age, normal velocity
+      "SAFE_001,365,30,1,0.03,450,1200,13500,0.08,340,1,2,1,1,1,1,1.0,1.0,1.0",
+      "SAFE_002,720,95,2,0.02,280,800,26600,0.13,650,2,2,2,1,1,1,1.0,1.2,1.0",
+      "SAFE_003,180,12,0,0.0,600,2000,7200,0.07,160,1,1,1,1,1,1,1.0,1.0,1.0",
+      "SAFE_004,540,45,3,0.07,320,950,14400,0.08,480,1,2,1,1,2,1,1.0,1.5,1.0",
+      "SAFE_005,90,8,0,0.0,150,400,1200,0.09,75,1,1,1,1,1,1,1.0,1.0,1.0",
+      // Fraudulent users: high refund, many shared devices, short timespan, high velocity
+      "FRAUD_001,14,120,96,0.80,380,1500,45600,8.57,5,5,4,3,8,6,5,3.5,2.8,2.2",
+      "FRAUD_002,7,95,87,0.92,410,1800,38950,13.57,3,4,3,3,8,6,5,3.5,2.8,2.2",
+      "FRAUD_003,21,105,82,0.78,400,1600,42000,5.00,8,5,4,3,8,6,5,3.5,2.8,2.2",
+      "FRAUD_004,10,80,52,0.65,310,1200,24800,8.00,4,3,3,2,4,5,3,2.0,2.0,1.8",
+      "FRAUD_005,12,92,65,0.71,315,1400,28980,7.67,6,4,3,2,4,5,3,2.0,2.0,1.8"
     ].join("\n")
 
     const blob = new Blob([header + rows], { type: 'text/csv' })
