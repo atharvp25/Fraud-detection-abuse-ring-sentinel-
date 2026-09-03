@@ -206,12 +206,13 @@ def _compute_ring_risk_score(member_features):
 
 
 def _get_action_policy(risk_score: int) -> str:
-    """Map a 0-100 risk score to an explicit action policy."""
-    if risk_score >= 85:
+    """Map a 0-100 risk score to an explicit action policy.
+    (Thresholds tuned high for the synthetic demo to show UI variety)"""
+    if risk_score >= 99:
         return "HARD_BLOCK"
-    elif risk_score >= 60:
+    elif risk_score >= 96:
         return "REVIEW"
-    elif risk_score >= 40:
+    elif risk_score >= 90:
         return "STEP_UP_AUTH"
     else:
         return "ALLOW"

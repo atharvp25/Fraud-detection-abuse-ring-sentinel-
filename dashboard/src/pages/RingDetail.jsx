@@ -1,9 +1,38 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchRingDetail, chatWithRing } from '../api'
-import { ArrowLeft, Users, Wifi, Smartphone, CreditCard, Brain, AlertTriangle, Send } from 'lucide-react'
+import { ArrowLeft, Users, Wifi, Smartphone, CreditCard, Brain, AlertTriangle, Send, ShieldAlert, Shield, ShieldCheck, Key } from 'lucide-react'
 import ForceGraph2D from 'react-force-graph-2d'
 import ReactMarkdown from 'react-markdown'
+
+function PolicyBadge({ action }) {
+  if (action === 'HARD_BLOCK') {
+    return (
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, color: '#ef4444', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+        <ShieldAlert size={14} /> HARD BLOCK
+      </div>
+    )
+  }
+  if (action === 'REVIEW') {
+    return (
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 6, color: '#f59e0b', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+        <Shield size={14} /> REVIEW
+      </div>
+    )
+  }
+  if (action === 'STEP_UP_AUTH') {
+    return (
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 6, color: '#3b82f6', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+        <Key size={14} /> CHALLENGE
+      </div>
+    )
+  }
+  return (
+    <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', borderRadius: 6, color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+      <ShieldCheck size={14} /> ALLOW
+    </div>
+  )
+}
 
 const NODE_COLORS = {
   customer: '#3b82f6',
@@ -321,17 +350,7 @@ export default function RingDetail() {
                   </span>
                 </td>
                 <td>
-                  <span style={{
-                    padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
-                    background: m.action === 'HARD_BLOCK' ? 'rgba(239,68,68,0.15)' :
-                                m.action === 'REVIEW' ? 'rgba(245,158,11,0.15)' :
-                                m.action === 'STEP_UP_AUTH' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)',
-                    color: m.action === 'HARD_BLOCK' ? '#ef4444' :
-                           m.action === 'REVIEW' ? '#f59e0b' :
-                           m.action === 'STEP_UP_AUTH' ? '#3b82f6' : '#10b981',
-                  }}>
-                    {m.action?.replace('_', ' ')}
-                  </span>
+                  <PolicyBadge action={m.action} />
                 </td>
                 <td style={{color: m.refund_rate > 0.2 ? 'var(--accent-red)' : 'var(--text-primary)'}}>
                   {(m.refund_rate * 100).toFixed(1)}%

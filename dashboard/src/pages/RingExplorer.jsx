@@ -1,7 +1,36 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchRings } from '../api'
-import { Search, AlertTriangle, Eye } from 'lucide-react'
+import { Search, AlertTriangle, Eye, ShieldAlert, Shield, ShieldCheck, Key } from 'lucide-react'
+
+function PolicyBadge({ action }) {
+  if (action === 'HARD_BLOCK') {
+    return (
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 6, color: '#ef4444', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+        <ShieldAlert size={14} /> HARD BLOCK
+      </div>
+    )
+  }
+  if (action === 'REVIEW') {
+    return (
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 6, color: '#f59e0b', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+        <Shield size={14} /> REVIEW
+      </div>
+    )
+  }
+  if (action === 'STEP_UP_AUTH') {
+    return (
+      <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 6, color: '#3b82f6', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+        <Key size={14} /> CHALLENGE
+      </div>
+    )
+  }
+  return (
+    <div style={{display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', borderRadius: 6, color: '#10b981', fontSize: 11, fontWeight: 700, letterSpacing: 0.5}}>
+      <ShieldCheck size={14} /> ALLOW
+    </div>
+  )
+}
 
 function getRiskLevel(score) {
   if (score >= 80) return 'critical'
@@ -11,10 +40,10 @@ function getRiskLevel(score) {
 }
 
 function getRiskLabel(score) {
-  if (score >= 80) return 'CRITICAL'
-  if (score >= 60) return 'HIGH'
-  if (score >= 40) return 'MEDIUM'
-  return 'LOW'
+  if (score >= 80) return 'Critical Risk'
+  if (score >= 60) return 'High Risk'
+  if (score >= 40) return 'Medium Risk'
+  return 'Low Risk'
 }
 
 export default function RingExplorer() {
@@ -126,20 +155,7 @@ export default function RingExplorer() {
                     </div>
                   </td>
                   <td>
-                    <span style={{
-                      padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-                      background: ring.action === 'HARD_BLOCK' ? 'rgba(239,68,68,0.15)' :
-                                  ring.action === 'REVIEW' ? 'rgba(245,158,11,0.15)' :
-                                  ring.action === 'STEP_UP_AUTH' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)',
-                      color: ring.action === 'HARD_BLOCK' ? '#ef4444' :
-                             ring.action === 'REVIEW' ? '#f59e0b' :
-                             ring.action === 'STEP_UP_AUTH' ? '#3b82f6' : '#10b981',
-                      border: `1px solid ${ring.action === 'HARD_BLOCK' ? 'rgba(239,68,68,0.3)' :
-                                           ring.action === 'REVIEW' ? 'rgba(245,158,11,0.3)' :
-                                           ring.action === 'STEP_UP_AUTH' ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)'}`,
-                    }}>
-                      {ring.action?.replace('_', ' ')}
-                    </span>
+                    <PolicyBadge action={ring.action} />
                   </td>
                   <td>
                     <button className="btn btn-outline" style={{padding: '6px 12px', fontSize: 12}}
