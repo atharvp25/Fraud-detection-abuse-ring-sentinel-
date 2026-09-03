@@ -296,6 +296,7 @@ export default function RingDetail() {
             <tr>
               <th>Customer ID</th>
               <th>Model Confidence</th>
+              <th>Policy</th>
               <th>Refund Rate</th>
               <th>Devices Used</th>
               <th>Shared Device Users</th>
@@ -317,6 +318,19 @@ export default function RingDetail() {
                     padding: '2px 8px', borderRadius: 4,
                   }}>
                     {(m.model_confidence * 100).toFixed(1)}%
+                  </span>
+                </td>
+                <td>
+                  <span style={{
+                    padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+                    background: m.action === 'HARD_BLOCK' ? 'rgba(239,68,68,0.15)' :
+                                m.action === 'REVIEW' ? 'rgba(245,158,11,0.15)' :
+                                m.action === 'STEP_UP_AUTH' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)',
+                    color: m.action === 'HARD_BLOCK' ? '#ef4444' :
+                           m.action === 'REVIEW' ? '#f59e0b' :
+                           m.action === 'STEP_UP_AUTH' ? '#3b82f6' : '#10b981',
+                  }}>
+                    {m.action?.replace('_', ' ')}
                   </span>
                 </td>
                 <td style={{color: m.refund_rate > 0.2 ? 'var(--accent-red)' : 'var(--text-primary)'}}>

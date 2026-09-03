@@ -34,10 +34,41 @@ export default function Overview() {
 
   return (
     <div className="fade-in">
-      <div className="page-header">
-        <h2>🛡️ Command Center</h2>
-        <p>Real-time overview of the Abuse Ring detection system</p>
+      <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+        <div>
+          <h2>🛡️ Command Center</h2>
+          <p>Real-time overview of the Abuse Ring detection system</p>
+        </div>
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: 8, padding: '6px 14px', fontSize: 12, color: '#fbbf24', fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: 6
+        }}>
+          <span style={{width: 8, height: 8, borderRadius: '50%', background: '#fbbf24', display: 'inline-block'}}></span>
+          SYNTHETIC DEMO DATA
+        </div>
       </div>
+
+      {/* Net Protected Value — headline business metric */}
+      {data.net_protected_value > 0 && (
+        <div className="panel fade-in" style={{
+          marginBottom: 24, padding: '20px 28px',
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.08))',
+          border: '1px solid rgba(16,185,129,0.2)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <div>
+            <div style={{fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1}}>Net Protected Value</div>
+            <div style={{fontSize: 32, fontWeight: 800, color: '#10b981'}}>
+              ₹{data.net_protected_value?.toLocaleString('en-IN')}
+            </div>
+            <div style={{fontSize: 12, color: 'var(--text-muted)', marginTop: 4}}>
+              Fraud prevented: ₹{data.fraud_value_protected?.toLocaleString('en-IN')} — FP friction cost: ₹{data.fp_cost?.toLocaleString('en-IN')}
+            </div>
+          </div>
+          <DollarSign size={48} color="rgba(16,185,129,0.3)" />
+        </div>
+      )}
 
       {/* Stats cards */}
       <div className="stats-grid">

@@ -95,6 +95,7 @@ export default function RingExplorer() {
               <th>Shared IPs</th>
               <th>Avg Refund Rate</th>
               <th>Risk Score</th>
+              <th>Policy</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -123,6 +124,22 @@ export default function RingExplorer() {
                       </div>
                       <span className={`badge ${level}`}>{ring.risk_score} — {getRiskLabel(ring.risk_score)}</span>
                     </div>
+                  </td>
+                  <td>
+                    <span style={{
+                      padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+                      background: ring.action === 'HARD_BLOCK' ? 'rgba(239,68,68,0.15)' :
+                                  ring.action === 'REVIEW' ? 'rgba(245,158,11,0.15)' :
+                                  ring.action === 'STEP_UP_AUTH' ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)',
+                      color: ring.action === 'HARD_BLOCK' ? '#ef4444' :
+                             ring.action === 'REVIEW' ? '#f59e0b' :
+                             ring.action === 'STEP_UP_AUTH' ? '#3b82f6' : '#10b981',
+                      border: `1px solid ${ring.action === 'HARD_BLOCK' ? 'rgba(239,68,68,0.3)' :
+                                           ring.action === 'REVIEW' ? 'rgba(245,158,11,0.3)' :
+                                           ring.action === 'STEP_UP_AUTH' ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)'}`,
+                    }}>
+                      {ring.action?.replace('_', ' ')}
+                    </span>
                   </td>
                   <td>
                     <button className="btn btn-outline" style={{padding: '6px 12px', fontSize: 12}}

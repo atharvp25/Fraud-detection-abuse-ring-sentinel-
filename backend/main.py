@@ -104,6 +104,25 @@ def get_overview():
     if not eval_results.empty:
         models = eval_results.to_dict(orient="records")
 
+    # Compute "money protected" headline number
+    fraud_value_protected = 0
+    fp_cost = 0
+    if not features.empty and ML_MODEL is not None and ML_FEATURES is not None:
+        try:
+            ring_member_features = features[features["customer_id"].isin(
+                labels[labels["is_ring_member"] == 1]["customer_id"].tolist()
+            )]
+            if "total_amount_spent" in ring_member_features.columns:
+                fraud_value_protected = float(ring_member_features["total_amount_spent"].sum())
+            # FP cost: from evaluation results
+            if not eval_results.empty and "fp_cost_inr" in eval_results.columns:
+                # Use XGBoost Tabular's FP cost (our recommended model)
+                tabular_row = eval_results[eval_results["model"].str.contains("Tabular", case=False, na=False)]
+                if not tabular_row.empty:
+                    fp_cost = float(tabular_row.iloc[0]["fp_cost_inr"])
+        except Exception:
+            pass
+
     return {
         "total_customers": total_customers,
         "total_rings": total_rings,
@@ -113,6 +132,9 @@ def get_overview():
         "customer_types": type_counts,
         "ring_types": ring_type_counts,
         "models": models,
+        "fraud_value_protected": round(fraud_value_protected, 0),
+        "fp_cost": round(fp_cost, 0),
+        "net_protected_value": round(fraud_value_protected - fp_cost, 0),
     }
 
 
@@ -151,6 +173,7 @@ def get_rings():
             "avg_refund_rate": round(avg_refund, 3),
             "avg_transaction_amount": round(avg_amount, 2),
             "risk_score": risk_score,
+            "action": _get_action_policy(risk_score),
         })
 
     # Sort by risk score descending
@@ -179,6 +202,18 @@ def _compute_ring_risk_score(member_features):
         avg_refund = float(member_features["refund_rate"].mean())
         return int(min(avg_refund * 120, 100))
     return 0
+
+
+def _get_action_policy(risk_score: int) -> str:
+    """Map a 0-100 risk score to an explicit action policy."""
+    if risk_score >= 85:
+        return "HARD_BLOCK"
+    elif risk_score >= 60:
+        return "REVIEW"
+    elif risk_score >= 40:
+        return "STEP_UP_AUTH"
+    else:
+        return "ALLOW"
 
 
 @app.get("/api/rings/{ring_id}")
@@ -219,9 +254,11 @@ def get_ring_detail(ring_id: str):
     members = []
     for _, m in member_features.iterrows():
         cid = m["customer_id"]
+        confidence = round(member_probas.get(cid, 0), 3)
         members.append({
             "customer_id": cid,
-            "model_confidence": round(member_probas.get(cid, 0), 3),
+            "model_confidence": confidence,
+            "action": _get_action_policy(int(round(confidence * 100))),
             "refund_rate": round(float(m.get("refund_rate", 0)), 3),
             "num_devices_used": int(m.get("num_devices_used", 0)),
             "shared_device_users": int(m.get("shared_device_users", 0)),
