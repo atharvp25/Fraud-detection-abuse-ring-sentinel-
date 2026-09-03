@@ -24,5 +24,10 @@ node_modules/
 dashboard/node_modules/
 dashboard/dist/
 
+# Debug / test scripts (not part of the project)
+diagnostics.py
+gather_stats.py
+validate_final.py
+
 # Misc
 *.png
