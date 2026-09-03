@@ -83,6 +83,7 @@ def get_overview():
     ring_meta = load_csv(RAW_DIR, "ring_metadata.csv")
     transactions = load_csv(RAW_DIR, "transactions.csv")
     eval_results = load_csv(PROCESSED_DIR, "evaluation_results.csv")
+    features = load_csv(PROCESSED_DIR, "feature_matrix.csv")
 
     total_customers = len(customers)
     total_rings = len(ring_meta)
